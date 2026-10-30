@@ -24,6 +24,14 @@ It has two parts:
 
 Every number above is a setting in `engine/config.yaml`.
 
+## Downloads
+
+The [latest release](../../releases/latest) is rebuilt automatically from `main`:
+
+- [TradeBot.apk](../../releases/latest/download/TradeBot.apk). Android control app.
+- [TradeBot-app-windows.zip](../../releases/latest/download/TradeBot-app-windows.zip). Windows control app (`TradeBot.exe`).
+- [TradeBot-engine-windows.zip](../../releases/latest/download/TradeBot-engine-windows.zip). The engine (`tradebot-engine.exe` plus start scripts).
+
 ## Try it in two minutes (no account needed)
 
 The demo runs a fake market at 60× speed, so you can watch a whole day in about 6 minutes. **The demo prices are random and not real data.**
@@ -74,7 +82,7 @@ app/                    Flutter control app (Android + Windows)
 
 ## Building
 
-GitHub Actions builds everything on every push. Push a tag like `v0.1.0` and the APK and Windows zips are attached to a GitHub Release.
+GitHub Actions builds everything on every push. Each successful build of `main` refreshes the **Latest build** release. A tag like `v0.1.0` creates a versioned release.
 
 To build locally, you need Flutter (stable) for the app. Run `cd app && flutter create --platforms=android,windows . && python ../tools/patch_platforms.py . && flutter build apk`. For the engine, use Python 3.11+ and run `pip install -e "engine[dev]" && pytest engine/tests`.
 

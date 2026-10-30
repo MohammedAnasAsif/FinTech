@@ -113,20 +113,30 @@ jobs:
 
   release:
     name: Publish release
-    if: startsWith(github.ref, 'refs/tags/v')
+    # tags v* publish a versioned release; every push to main refreshes the "latest" release
+    if: startsWith(github.ref, 'refs/tags/v') || (github.event_name == 'push' && github.ref == 'refs/heads/main')
     needs: [android, windows-app, windows-engine]
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v4
+      - name: Move the "latest" tag to this commit
+        if: "!startsWith(github.ref, 'refs/tags/')"
+        run: |
+          git tag -f latest
+          git push -f origin refs/tags/latest
       - uses: actions/download-artifact@v4
         with:
           path: dist
           merge-multiple: true
       - uses: softprops/action-gh-release@v2
         with:
+          tag_name: ${{ startsWith(github.ref, 'refs/tags/') && github.ref_name || 'latest' }}
+          name: ${{ startsWith(github.ref, 'refs/tags/') && github.ref_name || 'Latest build' }}
+          make_latest: true
           files: dist/*
           body: |
             **TradeBot.apk** — Android control app (sideload; allow "install unknown apps").
             **TradeBot-app-windows.zip** — Windows control app; unzip and run TradeBot.exe.
             **TradeBot-engine-windows.zip** — the engine; unzip, then run `start-demo.bat` to try it, or follow docs/SETUP.md.
 
-            Paper trading is the default. Live trading stays locked until paper results earn it.
+            Built from commit ${{ github.sha }}. Paper trading is the default; live trading stays locked until paper results earn it.
