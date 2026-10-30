@@ -27,9 +27,9 @@ class MarketSettings(BaseModel):
 
 
 class RiskSettings(BaseModel):
-    session_loss_limit: float = 500.0    # lose this much in one cycle -> flatten, research, come back later
-    max_cycles: int = 2                  # how many cycles per day before the bot stops for the day
-    daily_loss_limit: float = 1000.0     # hard stop for the day, whatever happens
+    daily_loss_limit: float = 500.0      # THE cap: lose this much today (open losses included) -> close all, stop for the day
+    session_loss_limit: float = 500.0    # advanced: per-cycle limit, only used if max_cycles > 1
+    max_cycles: int = 1                  # 1 = never come back after hitting the cap (recommended)
     max_open_positions: int = 1
     max_trades_per_day: int = 6
     risk_per_trade_pct: float = 1.5      # % of today's capital risked between entry and stop

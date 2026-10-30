@@ -3,7 +3,8 @@
   night (20:00)      research -> tomorrow's watchlist
   morning            you set today's capital from the app (Start)
   10:00 - 14:45      trade the watchlist; manage stops/targets
-  any time           lose ₹500 in a cycle -> flatten, re-research, wait, come back (max 2 cycles)
+  any time           lose ₹500 today (open losses included) -> close everything, bench the losers,
+                     analyse past + today's data for tomorrow, NO more trades today
   any time           Pause (a break), Stop for today, or Kill switch from the app
   14:45 - 15:00      no new trades, manage exits
   15:00              square off everything
@@ -254,7 +255,9 @@ class Engine:
             self._flatten("daily loss limit")
             r.end_day("loss limit reached")
             self.state = State.DONE
-            self.event(f"Loss limit reached (₹{r.realized_total:.2f}). Done for today.", "warning")
+            self.event(f"Loss limit reached (₹{r.realized_total:.2f}). Everything is closed and there are "
+                       f"no more trades today.", "warning")
+            self._loss_analysis(now)
             return
         if action is LimitAction.CYCLE_STOP:
             self._flatten("cycle loss limit")
@@ -417,6 +420,29 @@ class Engine:
             res = research(self.history, self.store, self.s, now, capital=self.risk.capital,
                            exclude=losers, label="midday")
             self.event(f"Re-research: {res['note']} Benched for today: {', '.join(sorted(losers)) or 'none'}.")
+        finally:
+            self.busy = None
+
+    def _loss_analysis(self, now: datetime) -> None:
+        """After the loss cap: bench today's losing stocks for tomorrow and re-plan using
+        past + today's data. The bot does NOT trade again today."""
+        day = now.date()
+        losers = sorted({t["symbol"] for t in self.store.trades(day=day.isoformat(), mode=self.mode)
+                         if t["net"] < 0})
+        until = self.cal.next_trading_day(day).isoformat()
+        block = self.store.get("blocklist", {}) or {}
+        for sym in losers:
+            block[sym] = max(block.get(sym, ""), until)
+        self.store.put("blocklist", block)
+        self.busy = "analysing today's losses"
+        try:
+            res = research(self.history, self.store, self.s, now, capital=self.risk.capital,
+                           exclude=set(losers), label="after-loss")
+            self.event(f"Analysis for tomorrow: {res['note']} Benched until {until}: "
+                       f"{', '.join(losers) or 'none'}. Full review at "
+                       f"{self.s.market.review_at.strftime('%H:%M')}.")
+        except Exception as e:  # noqa: BLE001
+            self.event(f"Analysis after the loss failed: {e}", "error")
         finally:
             self.busy = None
 

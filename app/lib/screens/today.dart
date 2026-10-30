@@ -91,7 +91,10 @@ class _TodayViewState extends State<_TodayView> {
         return 'Hit the cycle loss limit. Everything is closed; re-studying the market. '
             'Back no earlier than ${_hhmm(r?['comeback_after'])}.';
       case 'DONE':
-        return 'Finished for today: ${r?['day_over_reason'] ?? ''}. Review runs at ${sched['review_at']}.';
+        return r?['day_over_reason'] == 'loss limit reached'
+            ? 'Loss limit reached. Everything is closed, no more trades today. The losing stocks are benched '
+                'and the bot is analysing past and today\'s data for tomorrow.'
+            : 'Finished for today: ${r?['day_over_reason'] ?? ''}. Review runs at ${sched['review_at']}.';
       case 'KILLED':
         return 'Kill switch used. Everything is closed and trading is locked until tomorrow.';
     }
@@ -154,17 +157,12 @@ class _TodayViewState extends State<_TodayView> {
               Text(_explain(s, r)),
               if (r != null) ...[
                 const SizedBox(height: 16),
-                Text('Capital ${rupees(asDouble(r['capital']))} · cycle ${r['cycle']} of ${r['max_cycles']} · '
-                    '${r['trades_today']}/${r['max_trades_per_day']} trades'),
+                Text('Capital ${rupees(asDouble(r['capital']))} · '
+                    '${r['trades_today']}/${r['max_trades_per_day']} trades'
+                    '${(r['max_cycles'] as num? ?? 1) > 1 ? ' · cycle ${r['cycle']} of ${r['max_cycles']}' : ''}'),
                 const SizedBox(height: 12),
                 _LimitBar(
-                  label: 'This cycle',
-                  used: -asDouble(r['cycle_realized']) + (state == 'RESEARCHING' ? 0.0 : openLoss),
-                  limit: asDouble(r['cycle_loss_limit']),
-                ),
-                const SizedBox(height: 8),
-                _LimitBar(
-                  label: 'Whole day',
+                  label: 'Today\'s loss limit',
                   used: -asDouble(r['realized_total']) + openLoss,
                   limit: asDouble(r['daily_loss_limit']),
                 ),

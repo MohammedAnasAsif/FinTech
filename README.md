@@ -16,7 +16,7 @@ It has two parts:
 | 20:00 (night before) | **Research.** For each stock in the universe, it tunes the strategy on older 5-minute history, then tests those settings on newer days the tuning never saw. A stock is only picked if it made money **after charges** in both. An empty watchlist is allowed, and on those days the bot sits out. |
 | Morning | You open the app and enter today's capital (for example ₹2,000). |
 | 10:00 | Trading starts on the watchlist. Each trade has a stop and a target, and is sized so the stop costs about 1.5% of capital. |
-| Any time | If a cycle loses **₹500**, the bot closes everything, re-researches using today's moves, benches the stocks that lost, and waits at least 30 minutes. It then comes back for **cycle 2**. If the second cycle also loses its limit, or the day loses ₹1,000, it stops for the day. |
+| Any time | **₹500 is the most it can lose in a day**, and open losses count toward it. When it hits ₹500, the bot closes everything and **stops trading until tomorrow**. It doesn't come back the same day. It benches the stocks that lost and runs its analysis on past and today's data to plan tomorrow. |
 | Any time | It takes an automatic 20-minute break after 3 losses in a row. **Take a break**, **Stop for today** and **Kill switch** are in the app. |
 | 14:45 | No new trades. |
 | 15:00 | Everything is squared off. This is earlier than the broker's own auto square-off. |
@@ -52,7 +52,7 @@ See **[docs/SETUP.md](docs/SETUP.md)**. It covers the free Angel One SmartAPI ke
 
 - **Paper mode by default.** Live mode needs `mode: live` in the config *and* 20 profitable paper days. The `i_accept_the_risk` override exists, but it is off.
 - **No leverage.** The bot only buys what today's capital can pay for in full.
-- **Loss limits** are checked on every tick and include open (unrealized) losses.
+- **One ₹500 loss cap per day.** It is checked every few seconds, open losses included. Trades are also sized so a stop-loss can't exceed what's left of the ₹500. A very fast price jump between checks can still push the final loss slightly past ₹500.
 - **Costs are always counted.** Brokerage, STT, exchange fees, SEBI fees, stamp duty, GST and slippage are subtracted in backtests, research, paper and live trading. A trade is skipped if its target profit isn't at least 3× its charges.
 - **Orders are marketable limit orders**, tagged `tradebot`, sent at no more than one per second through Angel One's official API with your own static IP. There is no screen-scraping and nothing hidden.
 - **The app needs a pairing token** for every action.
@@ -67,7 +67,7 @@ Stops are managed by the engine, not placed at the broker. If your PC or interne
 engine/                 Python engine
   tradebot/
     engine.py           daily timetable & state machine
-    risk.py             ₹500 cycles, daily cap, cooldowns, position sizing
+    risk.py             ₹500 daily loss cap, cooldowns, position sizing
     research.py         overnight walk-forward research
     review.py           post-market self-review & learned rules, live-trading gate
     backtest.py         bar-by-bar backtester (net of costs)

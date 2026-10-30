@@ -13,16 +13,13 @@ market:
   holidays_file: holidays.yaml
 
 risk:
-  session_loss_limit: 500   # lose ₹500 in a cycle -> close all, re-research, come back later
-  max_cycles: 2             # cycles per day
-  daily_loss_limit: 1000    # hard stop for the day
+  daily_loss_limit: 500     # lose ₹500 today -> close everything, analyse, no more trades until tomorrow
   max_open_positions: 1
   max_trades_per_day: 6
   risk_per_trade_pct: 1.5   # % of today's capital at risk between entry and stop
   use_leverage: false
   cooldown_after_losses: 3  # losing streak -> automatic break
   cooldown_minutes: 20
-  comeback_wait_minutes: 30
 
 strategy:
   interval_minutes: 5

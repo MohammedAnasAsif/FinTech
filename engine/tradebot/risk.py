@@ -1,8 +1,8 @@
 """Risk rules. Pure logic, no I/O, so every rule is unit-tested.
 
-The cycle the user asked for:
-  trade -> lose `session_loss_limit` in this cycle -> flatten, research, wait
-  -> come back as the next cycle ... until `max_cycles` or `daily_loss_limit` ends the day.
+Default: one hard cap per day. Lose `daily_loss_limit` (₹500), counting open losses,
+and the day is over: flatten, analyse for tomorrow, no more trades.
+(Advanced, off by default: `max_cycles` > 1 allows coming back after a per-cycle limit.)
 """
 from __future__ import annotations
 
@@ -56,7 +56,8 @@ class DayRisk:
             return 0
         cash = self.capital if available_cash is None else min(self.capital, available_cash)
         # never size a trade that could push past the remaining cycle allowance
-        room = self.cfg.session_loss_limit + self.cycle_realized
+        room = min(self.cfg.session_loss_limit + self.cycle_realized,
+                   self.cfg.daily_loss_limit + self.realized_total)
         cash_qty = math.floor(cash / price) if not self.cfg.use_leverage else math.floor(cash * 5 / price)
         risk_amt = min(self.capital * self.cfg.risk_per_trade_pct / 100, max(room, 0))
         per_share = abs(price - stop)

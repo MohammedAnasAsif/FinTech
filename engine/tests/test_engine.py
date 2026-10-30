@@ -95,3 +95,28 @@ def test_refuses_bad_starts(store, settings):
     assert not eng.start_day(2000)["ok"]                 # too late
     eng2, _ = make_engine(store, settings, start=at(10, 0, DAY + timedelta(days=2)))  # Saturday
     assert not eng2.start_day(2000)["ok"]
+
+
+def test_hitting_500_cap_ends_day_benches_losers_and_plans_tomorrow(store, settings):
+    settings.risk.daily_loss_limit = 5          # tiny cap so the synthetic day hits it
+    eng, clock = make_engine(store, settings)
+    eng.start_day(2000)
+    stop_time = None
+    while clock.now() < at(15, 5):
+        clock.advance(minutes=1)
+        eng.tick()
+        if stop_time is None and eng.risk.day_over and eng.risk.day_over_reason == "loss limit reached":
+            stop_time = clock.now()
+    assert stop_time, "the cap should have been hit"
+    assert eng.state is State.DONE and not eng.positions
+    trades = store.trades(day=DAY.isoformat())
+    assert all(t["entry_ts"] < stop_time.isoformat() for t in trades), "no trades after the cap"
+    assert State.RESEARCHING not in {eng.state}
+    assert eng.risk.cycle == 1
+    losers = {t["symbol"] for t in trades if t["net"] < 0}
+    block = store.get("blocklist")
+    assert losers and all(s in block for s in losers)
+    wl = store.get("watchlist")
+    assert wl["kind"] == "after-loss"
+    assert not {p["symbol"] for p in wl["picks"]} & losers
+    assert not eng.start_day(2000)["ok"]          # can't restart the same day

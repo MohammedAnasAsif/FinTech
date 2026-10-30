@@ -10,8 +10,17 @@ def trade(net):
     return Trade("d", "X", 1, 1, "", 1, "", 1, net, 0, net, "", "")
 
 
-def test_cycle_then_day_stop():
+def test_default_is_one_500_cap_for_the_whole_day():
     r = DayRisk(capital=2000, cfg=RiskSettings())
+    r.on_trade_closed(trade(-300), at(10, 30))
+    assert r.check_limits(-150) is LimitAction.NONE
+    assert r.check_limits(-200) is LimitAction.DAY_STOP     # -300 realized + -200 open = -500
+    # sizing never risks more than what's left of the ₹500 (here ₹200)
+    assert r.position_size(price=100, stop=90) <= 20
+
+
+def test_optional_cycles_when_enabled():
+    r = DayRisk(capital=2000, cfg=RiskSettings(max_cycles=2, daily_loss_limit=1000))
     r.on_trade_closed(trade(-300), at(10, 30))
     assert r.check_limits(0) is LimitAction.NONE
     assert r.check_limits(-250) is LimitAction.CYCLE_STOP
