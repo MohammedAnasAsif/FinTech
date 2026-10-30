@@ -1,0 +1,44 @@
+# Copy to config.yaml and adjust. Every value here has a safe default; delete lines you don't change.
+
+mode: paper            # paper = real prices, fake money. live = real orders (locked until paper results earn it)
+data_source: angelone  # angelone = real market data. replay = stored/synthetic data (testing)
+data_dir: data
+
+market:
+  trade_start: "10:00"   # first entry (market opens 09:15)
+  last_entry: "14:45"    # no new trades after this
+  square_off: "15:00"    # everything closed by this time
+  review_at: "15:10"     # self-review of the day
+  research_at: "20:00"   # overnight research for tomorrow
+  holidays_file: holidays.yaml
+
+risk:
+  session_loss_limit: 500   # lose ₹500 in a cycle -> close all, re-research, come back later
+  max_cycles: 2             # cycles per day
+  daily_loss_limit: 1000    # hard stop for the day
+  max_open_positions: 1
+  max_trades_per_day: 6
+  risk_per_trade_pct: 1.5   # % of today's capital at risk between entry and stop
+  use_leverage: false
+  cooldown_after_losses: 3  # losing streak -> automatic break
+  cooldown_minutes: 20
+  comeback_wait_minutes: 30
+
+strategy:
+  interval_minutes: 5
+  min_reward_to_cost: 3.0   # skip trades whose target profit is under 3x the charges
+  allow_short: false
+
+research:
+  top_k: 3
+  lookback_days: 45
+  # universe: [SBIN, ITC, TATASTEEL, ...]   # NSE symbols to study each night
+
+live_gate:
+  min_paper_days: 20
+  require_positive_net: true
+  i_accept_the_risk: false
+
+api:
+  host: 0.0.0.0   # reachable from your phone on the same Wi-Fi
+  port: 8765

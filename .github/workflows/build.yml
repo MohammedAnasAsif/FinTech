@@ -1,0 +1,132 @@
+name: Build APK and Windows apps
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+env:
+  ORG: io.github.mohammedanasasif
+
+jobs:
+  android:
+    name: Android APK
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - name: Generate platform folders
+        working-directory: app
+        run: flutter create --platforms=android --org "$ORG" --project-name tradebot_app .
+      - run: python3 tools/patch_platforms.py app
+      - name: Analyze and test
+        working-directory: app
+        run: |
+          flutter pub get
+          flutter analyze --no-fatal-infos --no-fatal-warnings
+          flutter test
+      - name: Build APK
+        working-directory: app
+        run: |
+          flutter build apk --release
+          mkdir -p ../dist
+          cp build/app/outputs/flutter-apk/app-release.apk ../dist/TradeBot.apk
+      - uses: actions/upload-artifact@v4
+        with:
+          name: TradeBot-android
+          path: dist/TradeBot.apk
+
+  windows-app:
+    name: Windows app (.exe)
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - name: Generate platform folders
+        working-directory: app
+        run: flutter create --platforms=windows --org "${{ env.ORG }}" --project-name tradebot_app .
+      - run: python tools/patch_platforms.py app
+      - name: Build
+        working-directory: app
+        run: |
+          flutter pub get
+          flutter build windows --release
+      - name: Package
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force dist | Out-Null
+          Compress-Archive -Path app/build/windows/x64/runner/Release/* -DestinationPath dist/TradeBot-app-windows.zip
+      - uses: actions/upload-artifact@v4
+        with:
+          name: TradeBot-app-windows
+          path: dist/TradeBot-app-windows.zip
+
+  windows-engine:
+    name: Windows engine (.exe)
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Install
+        working-directory: engine
+        run: pip install . pyinstaller
+      - name: Build exe
+        working-directory: engine
+        run: >
+          pyinstaller --onefile --name tradebot-engine --console
+          --collect-data tzdata --collect-submodules uvicorn --collect-submodules SmartApi
+          --hidden-import pyotp run_engine.py
+      - name: Smoke test
+        working-directory: engine
+        run: dist\tradebot-engine.exe --help
+      - name: Package
+        shell: pwsh
+        run: |
+          $out = "dist/TradeBot-engine"
+          New-Item -ItemType Directory -Force $out | Out-Null
+          Copy-Item engine/dist/tradebot-engine.exe $out/
+          Copy-Item engine/config.example.yaml, engine/holidays.yaml, engine/.env.example $out/
+          Copy-Item engine/windows/*.bat $out/
+          Compress-Archive -Path "$out/*" -DestinationPath dist/TradeBot-engine-windows.zip
+      - uses: actions/upload-artifact@v4
+        with:
+          name: TradeBot-engine-windows
+          path: dist/TradeBot-engine-windows.zip
+
+  release:
+    name: Publish release
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [android, windows-app, windows-engine]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: dist/*
+          body: |
+            **TradeBot.apk** — Android control app (sideload; allow "install unknown apps").
+            **TradeBot-app-windows.zip** — Windows control app; unzip and run TradeBot.exe.
+            **TradeBot-engine-windows.zip** — the engine; unzip, then run `start-demo.bat` to try it, or follow docs/SETUP.md.
+
+            Paper trading is the default. Live trading stays locked until paper results earn it.

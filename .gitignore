@@ -1,0 +1,38 @@
+# secrets — never commit
+.env
+engine/.env
+engine/config.yaml
+
+# engine runtime data
+engine/data/
+data/
+*.db
+
+# python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+build/
+dist/
+.pytest_cache/
+
+# flutter (platform folders are generated in CI by `flutter create`)
+app/.dart_tool/
+app/.flutter-plugins
+app/.flutter-plugins-dependencies
+app/.packages
+app/build/
+app/android/
+app/ios/
+app/windows/
+app/linux/
+app/macos/
+app/web/
+app/pubspec.lock
+app/.metadata
+
+# os
+.DS_Store
+Thumbs.db
